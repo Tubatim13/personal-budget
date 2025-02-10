@@ -75,11 +75,15 @@
             </article>
     
             <article>
-                <h2>Chart</h2>
-                <p>
-                    <!-- This is an A11y Change -->
-                    <canvas id="myChart" width="400" height="400" aria-label="Budget distribution pie chart" role="img"></canvas>
-                </p>
+                <h2>Charts</h2>
+                <div class="chart-container">
+                    <div class="chart-box">
+                        <canvas id="myChart" width="400" height="400" aria-label="Budget distribution pie chart" role="img"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <div id="d3Chart"></div>
+                    </div>
+                </div>
             </article>
 
         </section>
@@ -95,6 +99,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.20.0/axios.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.3/Chart.min.js"></script>
+    <script src="https://d3js.org/d3.v3.min.js"></script>
 
     <script>
         var dataSource = {
@@ -106,6 +111,9 @@
                             '#ff6384',
                             '#36a2eb',
                             '#fd6b19',
+                            '#4bc0c0',
+                            '#9966ff',
+                            '#c9cbcf',
                         ]
                     }
                 ],
@@ -128,8 +136,76 @@
                     dataSource.labels[i] = res.data.myBudget[i].title;
                     createChart();
                 }
+                createD3Chart(res.data.myBudget);
             });
         }
+
+        function createD3Chart(budgetData) {
+            var width = 600, height = 600;
+            var radius = 200; // Keeping donut size fixed
+
+            var svg = d3.select("#d3Chart").append("svg")
+                .attr("width", width)
+                .attr("height", height)
+                .append("g")
+                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")"); // Center the chart
+
+            var color = d3.scale.ordinal().range(["#8B4513", "#A0522D", "#CD853F", "#D2691E", "#B8860B", "#DAA520", "#556B2F"]);
+            var pie = d3.layout.pie().value(d => d.budget);
+            var arc = d3.svg.arc().outerRadius(radius * 0.7).innerRadius(radius * 0.4);
+            var outerArc = d3.svg.arc().innerRadius(radius * 0.9).outerRadius(radius * 0.9);
+
+            function midAngle(d) {
+                return d.startAngle + (d.endAngle - d.startAngle) / 2;
+            }
+
+            var g = svg.selectAll(".arc")
+                .data(pie(budgetData))
+                .enter().append("g")
+                .attr("class", "arc");
+
+            g.append("path")
+                .attr("d", arc)
+                .style("fill", d => color(d.data.title));
+
+            // ✅ **Fix: Adjust Label Placement**
+            var text = svg.selectAll(".label")
+                .data(pie(budgetData))
+                .enter().append("text")
+                .attr("class", "label")
+                .attr("transform", function(d) {
+                    var pos = outerArc.centroid(d);
+                    pos[0] = radius * (midAngle(d) < Math.PI ? .9 : -.9); // 🔥 Positioning labels further out, aligned properly
+                    return "translate(" + pos + ")";
+                })
+                .attr("dy", ".35em")
+                .style("text-anchor", function(d) {
+                    return midAngle(d) < Math.PI ? "start" : "end";
+                })
+                .style("fill", "#333")
+                .style("font-size", "14px")
+                .style("font-weight", "bold")
+                .text(d => d.data.title);
+
+            // ✅ **Fix: Bent Connecting Lines**
+            svg.selectAll(".line")
+                .data(pie(budgetData))
+                .enter().append("polyline")
+                .attr("points", function(d) {
+                    var posA = arc.centroid(d); // Start at the slice
+                    var posB = outerArc.centroid(d); // Intermediate control point (where the bend happens)
+                    var posC = [...posB]; // Copy of posB for modification
+
+                    posC[0] = radius * (midAngle(d) < Math.PI ? .85 : -.85); // Move outward left/right
+
+                    return [posA, posB, posC]; // Three points for bending effect
+                })
+                .style("fill", "none")
+                .style("stroke", "black")
+                .style("stroke-width", "1px")
+                .style("opacity", 0.7);
+        }
+
 
         getBudget();
     </script>

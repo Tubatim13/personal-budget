@@ -107,3 +107,26 @@ main article {
         margin: 10px;
     }
 }
+
+.chart-row {
+    display: flex;
+    justify-content: center; 
+    align-items: center; 
+    gap: 40px; 
+    flex-wrap: nowrap; 
+}
+
+.chart-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 400px; 
+    height: 400px;
+}
+
+
+@media (max-width: 800px) {
+    .chart-row {
+        flex-wrap: wrap; 
+    }
+}
