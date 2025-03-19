@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- This is an SEO Change -->
     <title>Personal Budget - Free Budget Management App</title>
 
-    <!-- This is an SEO Change -->
     <meta name="description" content="Manage your finances efficiently with Personal Budget, a free budgeting app to track expenses and save money.">
     
     <meta name="keywords" content="budget app, personal finance, free budget tracker, money management, expense tracking">
@@ -24,12 +22,10 @@
             <li><a href="/about.html">About</a></li>
             <li><a href="/login.html">Login</a></li>
 
-            <!-- This is an A11y Change -->
             <li><a href="https://google.com" aria-label="Search on Google">Google</a></li>
         </ul>
     </nav>
 
-    <!-- This is a Semantic HTML Change -->
     <header class="hero">
         <h1>Personal Budget</h1>
         <h2>A personal-budget management app</h2>
@@ -37,10 +33,8 @@
 
     <main class="center" id="main">
 
-        <!-- This is a Semantic HTML Change -->
         <section class="page-area">
 
-            <!-- This is an SEO Change -->
             <article>
                 <h2>Stay on track</h2>
                 <p>
@@ -49,8 +43,7 @@
                     app will help you with that!
                 </p>
             </article>
-    
-            <!-- This is an SEO Change -->
+
             <article>
                 <h2>Alerts</h2>
                 <p>
@@ -90,7 +83,6 @@
 
     </main>
 
-    <!-- This is a Semantic HTML Change -->
     <footer>
         <div class="center">
             All rights reserved &copy; Fabio Nolasco
@@ -131,29 +123,36 @@
         function getBudget() {
             axios.get('http://localhost:3000/budget')
             .then(function (res) {
+                console.log("Fetched Data:", res.data.myBudget); // Debugging
                 for (var i = 0; i < res.data.myBudget.length; i++) {
-                    dataSource.datasets[0].data[i] = res.data.myBudget[i].budget;
+                    dataSource.datasets[0].data[i] = res.data.myBudget[i].related_value; // Using related_value instead of budget
                     dataSource.labels[i] = res.data.myBudget[i].title;
-                    createChart();
+                    dataSource.datasets[0].backgroundColor[i] = res.data.myBudget[i].color; // Ensuring correct colors
                 }
+                createChart();
                 createD3Chart(res.data.myBudget);
             });
         }
 
         function createD3Chart(budgetData) {
-            var width = 600, height = 600;
-            var radius = 200; // Keeping donut size fixed
+            d3.select("#d3Chart").selectAll("*").remove(); // Clear previous chart
 
-            var svg = d3.select("#d3Chart").append("svg")
+            var width = 500, height = 500; // Smaller overall chart
+            var radius = Math.min(width, height) / 2.5; // Adjusted to fit better
+
+            var svg = d3.select("#d3Chart")
+                .append("svg")
                 .attr("width", width)
                 .attr("height", height)
                 .append("g")
-                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")"); // Center the chart
+                .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
 
-            var color = d3.scale.ordinal().range(["#8B4513", "#A0522D", "#CD853F", "#D2691E", "#B8860B", "#DAA520", "#556B2F"]);
-            var pie = d3.layout.pie().value(d => d.budget);
-            var arc = d3.svg.arc().outerRadius(radius * 0.7).innerRadius(radius * 0.4);
-            var outerArc = d3.svg.arc().innerRadius(radius * 0.9).outerRadius(radius * 0.9);
+            var color = d3.scale.ordinal().range(budgetData.map(d => d.color)); // Use colors from MongoDB
+
+            var pie = d3.layout.pie().value(d => d.related_value);
+
+            var arc = d3.svg.arc().outerRadius(radius * 0.6).innerRadius(radius * 0.3); // Reduced outer diameter
+            var outerArc = d3.svg.arc().innerRadius(radius * 0.75).outerRadius(radius * 0.8); // Closer outer arc
 
             function midAngle(d) {
                 return d.startAngle + (d.endAngle - d.startAngle) / 2;
@@ -168,14 +167,13 @@
                 .attr("d", arc)
                 .style("fill", d => color(d.data.title));
 
-            // ✅ **Fix: Adjust Label Placement**
             var text = svg.selectAll(".label")
                 .data(pie(budgetData))
                 .enter().append("text")
                 .attr("class", "label")
                 .attr("transform", function(d) {
                     var pos = outerArc.centroid(d);
-                    pos[0] = radius * (midAngle(d) < Math.PI ? .9 : -.9); // 🔥 Positioning labels further out, aligned properly
+                    pos[0] = radius * (midAngle(d) < Math.PI ? 0.9 : -0.9); // Pull labels even closer
                     return "translate(" + pos + ")";
                 })
                 .attr("dy", ".35em")
@@ -183,22 +181,19 @@
                     return midAngle(d) < Math.PI ? "start" : "end";
                 })
                 .style("fill", "#333")
-                .style("font-size", "14px")
+                .style("font-size", "10px") // Smaller font size for better fit
                 .style("font-weight", "bold")
                 .text(d => d.data.title);
 
-            // ✅ **Fix: Bent Connecting Lines**
             svg.selectAll(".line")
                 .data(pie(budgetData))
                 .enter().append("polyline")
                 .attr("points", function(d) {
-                    var posA = arc.centroid(d); // Start at the slice
-                    var posB = outerArc.centroid(d); // Intermediate control point (where the bend happens)
-                    var posC = [...posB]; // Copy of posB for modification
-
-                    posC[0] = radius * (midAngle(d) < Math.PI ? .85 : -.85); // Move outward left/right
-
-                    return [posA, posB, posC]; // Three points for bending effect
+                    var posA = arc.centroid(d); 
+                    var posB = outerArc.centroid(d); 
+                    var posC = [...posB]; 
+                    posC[0] = radius * (midAngle(d) < Math.PI ? 0.8 : -0.8); // Shorter lines to match new scale
+                    return [posA, posB, posC]; 
                 })
                 .style("fill", "none")
                 .style("stroke", "black")
